@@ -110,7 +110,7 @@ int create_child(char** arg,int background,int input_redirection,int output_redi
 		{
 			fdin=open(input_file,O_RDONLY);
 
-			if(fdout<0)
+			if(fdin<0)
 				perror("Input file not opened!!");
 			else
 			{
