@@ -7,12 +7,21 @@
 #include<sys/stat.h>
 #include<fcntl.h>
 
+enum ERROR{
+	NOERROR,
+	FILEOPENERROR,
+	DUPERROR,
+	CHDIRERROR,
+	FORKERROR
+};
+
 int mycd(char** arg)
 {
 	if(chdir(arg[1])==0)
 		return 1;
 
-	return 0;
+	perror("Directory couldnot be opened!\n");
+	exit(-CHDIRERROR);
 }
 
 int myquit(char** arg)
@@ -38,12 +47,33 @@ int get_input(char** arg,int* background,int* input_redirection,int* output_redi
 {
 	char* buff=(char*)calloc(100,sizeof(char));
 
-	char c='a';
-	int i=0,flag=0;
+	int i=0;
+	char c=getchar();
+
+	while(c==' ')
+		c=getchar();
 
 	while(c!='\n')
 	{
 		scanf("%s",buff);
+
+		//to handle only \n input we are taking a getchar at the beginning.That charecter is to be put
+		//in buff if it was not a \n.
+		if(!i)
+		{
+			int j=strlen(buff);
+
+			for( ;j>=0;j--)
+				buff[j+1]=buff[j];
+
+			buff[0]=c;
+		}
+
+		//If a filename/command with space
+		if(buff[0]=='\"')
+		{
+
+		}
 
 		if(!strcmp(buff,"&"))
 		{
@@ -56,7 +86,6 @@ int get_input(char** arg,int* background,int* input_redirection,int* output_redi
 		else if(!strcmp(buff,">"))
 		{
 			*output_redirection=1;
-			flag=1;
 		}
 		else
 		{
@@ -88,9 +117,6 @@ int get_input(char** arg,int* background,int* input_redirection,int* output_redi
 
 	arg[i]=NULL;
 
-	if(arg==NULL)
-		printf("NULL!");
-
 	return i;
 
 }
@@ -111,11 +137,17 @@ int create_child(char** arg,int background,int input_redirection,int output_redi
 			fdin=open(input_file,O_RDONLY);
 
 			if(fdin<0)
-				perror("Input file not opened!!");
+			{
+				perror("Input file not opened!!\n");
+				exit(-FILEOPENERROR);
+			}
 			else
 			{
 				if(dup2(fdin,0)<0)
-					perror("No such file!!");
+				{
+					perror("Error in INput redirection!!\n");
+					exit(-DUPERROR);
+				}
 			}
 		}
 
@@ -124,12 +156,18 @@ int create_child(char** arg,int background,int input_redirection,int output_redi
 			fdout=open(output_file,O_WRONLY|O_CREAT,0777);
 
 			if(fdout<0)
-				perror("Output file not opened!!");
+			{
+				perror("Output file not opened!!\n");
+				exit(-FILEOPENERROR);
+			}
 			else
 			{
 
 				if(dup2(fdout,1)<0)
-					perror("Error in output redirection!!");
+				{
+					perror("Error in output redirection!!\n");
+					exit(-DUPERROR);
+				}
 			}
 		}
 
@@ -144,6 +182,7 @@ int create_child(char** arg,int background,int input_redirection,int output_redi
 	else if(pid<0)
 	{
 		perror("Error encounterd!\n");
+		exit(-FORKERROR);
 	}
 	else
 	{
@@ -189,6 +228,7 @@ main()
 		printf("MyShell$ ");
 		count=get_input(arg,&background,&input_redirection,&output_redirection);
 
+		if(count)
 		ret=execute(arg,background,input_redirection,output_redirection);
 	}
 }
